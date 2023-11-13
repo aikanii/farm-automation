@@ -1,0 +1,234 @@
+#define IO_USERNAME "ncbalayon"
+#define IO_KEY "aio_KcSm62U1LqygqArtTpP54udksHVD"
+#define WIFI_SSID "Balayon_Family"
+#define WIFI_PASS "Balayon12300.."
+
+#include "AdafruitIO_WiFi.h"
+
+#if defined(USE_AIRLIFT) || defined(ADAFRUIT_METRO_M4_AIRLIFT_LITE) ||         \
+    defined(ADAFRUIT_PYPORTAL)
+    
+#if !defined(SPIWIFI_SS)
+
+#define SPIWIFI SPI
+#define SPIWIFI_SS 10 
+#define NINA_ACK 9    
+#define NINA_RESETN 6 
+#define NINA_GPIO0 -1 
+#endif
+AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS, SPIWIFI_SS,
+                   NINA_ACK, NINA_RESETN, NINA_GPIO0, &SPIWIFI);
+#else
+AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS);
+#endif
+
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+
+// pin connected to DH22 data line
+#define DATA_PIN 4
+
+// create DHT22 instance
+DHT_Unified dht(DATA_PIN, DHT11);
+
+AdafruitIO_Feed *temperature = io.feed("temperature");
+AdafruitIO_Feed *humidity = io.feed("humidity");
+AdafruitIO_Feed *luminance = io.feed("luminance");
+AdafruitIO_Feed *led = io.feed("led");
+AdafruitIO_Feed *automatic = io.feed("automatic");
+
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+#define redLED 5
+#define blueLED 18
+#define bulb 23
+
+#define PRPIN 33
+
+int x, manual;
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void tests(){
+   // connect to io.adafruit.com
+  lcd.clear();
+  lcd.print("Connecting");
+  io.connect();
+
+  led->onMessage(handleMessage);
+  automatic->onMessage(handleMessage2);
+
+  //Initialize Light Bulb
+  
+
+  // wait for a connection
+  while(io.status() < AIO_CONNECTED) {
+    lcd.print(".");
+         int luxx = analogRead(PRPIN);
+          
+         if(luxx > 100){
+            digitalWrite(bulb, LOW);
+          }else{
+            digitalWrite(bulb, HIGH);
+          }
+    delay(500);
+  }
+
+  // we are connected
+  lcd.setCursor(0, 1);
+  lcd.print("CONNECTED!");
+
+  led->get();
+  automatic->get();
+
+  delay(2000);
+  
+  lcd.clear();
+}
+ 
+void setup() {
+
+  //delay(5000);
+
+  dht.begin();
+
+  lcd.init();
+  lcd.backlight();
+
+  pinMode(redLED, OUTPUT);
+  pinMode(bulb, OUTPUT);
+  pinMode(blueLED, OUTPUT);
+  pinMode(PRPIN, INPUT);
+  
+  tests();
+  
+
+}
+
+void loop() {
+
+   if(io.status() != AIO_CONNECTED){
+
+      lcd.clear();
+      lcd.print("DISCONNECTED!"); 
+      delay(3000);
+
+      tests();
+        
+    }
+
+  io.run();
+  
+  sensors_event_t event;
+  dht.temperature().getEvent(&event);
+
+  int celsius = event.temperature;
+
+  temperature->save(celsius);
+
+  dht.humidity().getEvent(&event);
+
+  int humid = event.relative_humidity;
+  
+  humidity->save(event.relative_humidity);
+
+  int lux = analogRead(PRPIN);
+
+  lcd.setCursor(0, 0);
+
+  lcd.print("T: ");
+  lcd.print(celsius);
+  lcd.print("*");
+  lcd.print("C");
+  lcd.print("  ");
+  lcd.print("H: ");
+  lcd.print(humid);
+  lcd.print("%");
+
+  lcd.setCursor(0, 1);
+  lcd.print("Bulb Stat: ");
+
+  if(celsius > 35 && humid < 35){
+    digitalWrite(redLED, HIGH);
+    //digitalWrite(greenLED, LOW);
+    digitalWrite(blueLED, LOW);
+  }else if(celsius < 30 && humid > 60){
+    digitalWrite(redLED, LOW);
+   // digitalWrite(greenLED, LOW);
+    digitalWrite(blueLED, HIGH);
+  }else if(celsius >= 30 && celsius <= 35 && humid >= 35 && humid <= 60){
+    digitalWrite(redLED, LOW);
+   // digitalWrite(greenLED, HIGH);
+    digitalWrite(blueLED, LOW);
+  }else{
+    digitalWrite(redLED, LOW);
+    //digitalWrite(greenLED, HIGH);
+    digitalWrite(blueLED, LOW);
+  }
+
+  lcd.setCursor(12, 1);
+  
+  if(manual == 1){
+    if(lux < 100 && x == 1){
+       digitalWrite(bulb, HIGH);
+       lcd.print("ON ");
+    }else if(lux > 100 && x == 1){
+       digitalWrite(bulb, HIGH);
+       lcd.print("ON ");
+    }else if(lux < 100 && x == 0){
+       digitalWrite(bulb, LOW);
+       lcd.print("OFF");
+    }else if(lux > 100 && x == 0){
+       digitalWrite(bulb, LOW);
+       lcd.print("OFF");
+    }
+  }else if(manual == 0){
+    if(lux > 100){
+      digitalWrite(bulb, LOW);
+      lcd.print("OFF");
+    }else{
+      digitalWrite(bulb, HIGH);
+      lcd.print("ON ");
+    }
+  }
+  /*int PRVALUE = analogRead(PRPIN);
+
+  if(PRVALUE <= 100){
+    digitalWrite(bulb, HIGH);
+  }else{
+    digitalWrite(bulb, LOW);
+  }*/
+
+  luminance->save(lux);
+  
+  delay(10000);
+
+}
+
+//-----------------------------------------------------------
+
+void handleMessage(AdafruitIO_Data *data) {
+  //Serial.print("received <- ");
+
+  if(data->toPinLevel() == HIGH)
+    x = 1;
+  else
+    x = 0;
+
+  //digitalWrite(bulb, data->toPinLevel());
+}
+
+void handleMessage2(AdafruitIO_Data *data) {
+  //Serial.print("received <- ");
+
+  if(data->toPinLevel() == HIGH)
+    manual = 1;
+  else
+    manual = 0;
+
+  //digitalWrite(bulb, data->toPinLevel());
+}
+
+
