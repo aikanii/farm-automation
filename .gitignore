@@ -1,0 +1,31 @@
+# Build artifacts
+build/
+*.elf
+*.bin
+*.hex
+*.map
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Arduino
+.preferred-project
+
+# Credentials (never commit these!)
+# If you have a local config override, name it config_local.h
+config_local.h
+
+# OS files
+desktop.ini
+.DS_Store
