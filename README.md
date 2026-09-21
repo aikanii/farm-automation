@@ -1,360 +1,522 @@
-# Farm Automation System
-
-**Group 5 — Lambda**
-
-An IoT-based farm automation system for small-scale enclosed farms using ESP32, with cloud monitoring via Adafruit IO.
-
-![Farm Automation Device](Actual%20Device.jpg)
-
+<div align="center">
+# 🌾 Farm Automation System
+**IoT-powered environmental monitoring and automated lighting control for small-scale enclosed farms**
+[![ESP32](https://img.shields.io/badge/Platform-ESP32-E7352C?style=flat-square&logo=espressif&logoColor=white)](https://www.espressif.com/en/products/socs/esp32)
+[![Arduino](https://img.shields.io/badge/Framework-Arduino-00979D?style=flat-square&logo=arduino&logoColor=white)](https://www.arduino.cc/)
+[![Adafruit IO](https://img.shields.io/badge/Cloud-Adafruit%20IO-006699?style=flat-square&logo=adafruit&logoColor=white)](https://io.adafruit.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/Version-2.0.0-blue?style=flat-square)](https://github.com/aikanii/farm-automation)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=flat-square)](https://github.com/aikanii/farm-automation)
+[Features](#-features) • [Quick Start](#-quick-start) • [Hardware](#-hardware) • [Wiring](#-wiring) • [Configuration](#%EF%B8%8F-configuration) • [Dashboard](#-cloud-dashboard) • [API](#-api-reference) • [Contributing](#-contributing)
+</div>
 ---
-
-## 📋 Table of Contents
-
-1. [Overview](#overview)
-2. [Features](#features)
-3. [Hardware Requirements](#hardware-requirements)
-4. [Wiring Diagram](#wiring-diagram)
-5. [Software Setup](#software-setup)
-6. [Adafruit IO Dashboard Setup](#adafruit-io-dashboard-setup)
-7. [Configuration](#configuration)
-8. [How It Works](#how-it-works)
-9. [Troubleshooting](#troubleshooting)
-10. [Documentation](#documentation)
-
+## Table of Contents
+- [Overview](#-overview)
+- [Features](#-features)
+- [System Architecture](#-system-architecture)
+- [Hardware Requirements](#-hardware-requirements)
+- [Wiring](#-wiring)
+- [Quick Start](#-quick-start)
+- [Configuration](#%EF%B8%8F-configuration)
+- [Cloud Dashboard](#-cloud-dashboard)
+- [API Reference](#-api-reference)
+- [Project Structure](#-project-structure)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Authors](#-authors)
 ---
-
-## 🌱 Overview
-
-The Farm Automation System monitors environmental conditions (temperature, humidity, and light levels) in an enclosed farm and provides automated control of grow lighting. Data is displayed locally on an LCD and uploaded to the Adafruit IO cloud dashboard for remote monitoring and control.
-
-The system supports two operating modes:
-- **Automatic Mode**: The grow light turns on/off based on ambient light levels detected by the photoresistor.
-- **Manual Mode**: The grow light is controlled remotely via the Adafruit IO dashboard.
-
+## 📖 Overview
+The Farm Automation System is an IoT solution built on the ESP32 microcontroller that provides real-time environmental monitoring and automated grow-light control for small-scale enclosed farms. The system reads temperature, humidity, and ambient light levels, then intelligently manages lighting while streaming data to the Adafruit IO cloud dashboard for remote monitoring and control.
+**Key Capabilities:**
+- Continuous monitoring of temperature, humidity, and luminance
+- Dual-mode lighting control (automatic + manual override)
+- Real-time cloud dashboard with historical data visualization
+- Local LCD display with at-a-glance system status
+- Visual LED indicators for environmental alerts
+- Robust error handling with auto-recovery
 ---
-
 ## ✨ Features
-
-| Feature | Description |
-|---------|-------------|
-| 🌡️ **Temperature Monitoring** | Real-time temperature readings via DHT11 sensor |
-| 💧 **Humidity Monitoring** | Real-time humidity readings via DHT11 sensor |
-| ☀️ **Light Level Detection** | Ambient light sensing via photoresistor (LDR) |
-| 💡 **Automatic Lighting** | Grow light auto-controlled by ambient light levels |
-| 🎮 **Manual Override** | Remote manual control via Adafruit IO dashboard |
-| 📺 **LCD Display** | Local 16×2 LCD showing sensor data and system status |
-| 🔴 **LED Indicators** | Red LED for hot/dry warnings, Blue LED for cool/humid |
-| ☁️ **Cloud Dashboard** | Real-time data visualization on Adafruit IO |
-| 🔄 **Auto-Reconnect** | Automatic WiFi and cloud reconnection on disconnect |
-| ⚡ **Error Handling** | Sensor retry logic and graceful error recovery |
-| ⏱️ **Non-Blocking Timing** | Responsive main loop using millis() |
-
+| Category | Feature | Description |
+|:---------|:--------|:------------|
+| 🌡️ **Sensing** | Temperature & Humidity | DHT11 sensor with 3-retry fault tolerance |
+| ☀️ **Sensing** | Ambient Light | Photoresistor with 5-sample averaging |
+| 💡 **Control** | Automatic Lighting | Grow light activates when ambient light drops below threshold |
+| 🎮 **Control** | Manual Override | Remote bulb control via Adafruit IO dashboard |
+| 📺 **Display** | LCD Status Panel | 16×2 I2C LCD showing live readings and system mode |
+| 🔴 **Indicators** | LED Alerts | Red LED for hot/dry warnings, Blue LED for cool/humid |
+| ☁️ **Cloud** | Adafruit IO | Real-time data upload with historical charts |
+| 🔄 **Reliability** | Auto-Reconnect | Seamless WiFi and cloud reconnection on disconnect |
+| ⚡ **Reliability** | Error Recovery | Graceful sensor failure handling with last-known-value fallback |
+| ⏱️ **Performance** | Non-Blocking | millis()-based timing — no blocking delays in main loop |
+| 🔧 **Config** | Centralized Config | All settings in a single `config.h` file |
 ---
-
+## 🏗️ System Architecture
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        FARM ENVIRONMENT                              │
+│                                                                      │
+│  ┌──────────┐    ┌──────────────┐    ┌──────────┐    ┌───────────┐  │
+│  │  DHT11   │    │Photoresistor │    │ Red LED  │    │ Blue LED  │  │
+│  │ Temp/Hum │    │   (LDR)      │    │ Warning  │    │  Status   │  │
+│  └────┬─────┘    └──────┬───────┘    └────┬─────┘    └─────┬─────┘  │
+│       │                 │                 │                │        │
+└───────┼─────────────────┼─────────────────┼────────────────┼────────┘
+        │                 │                 │                │
+        ▼                 ▼                 ▲                ▲
+┌───────────────────────────────────────────────────────────────────────┐
+│                            ESP32                                      │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │                     FIRMWARE v2.0.0                             │  │
+│  │                                                                 │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │  │
+│  │  │  Sensor  │  │ Control  │  │ Display  │  │   Cloud      │  │  │
+│  │  │ Manager  │  │  Logic   │  │ Manager  │  │   Client     │  │  │
+│  │  └──────────┘  └──────────┘  └──────────┘  └──────────────┘  │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│       │ GPIO 4        │ GPIO 33      │ GPIO 23                       │
+│       ▼               ▼              ▼                               │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────────┐  │
+│  │  DHT11   │   │   LDR    │   │  Relay   │   │   LCD 16×2 I2C  │  │
+│  └──────────┘   └──────────┘   └────┬─────┘   └──────────────────┘  │
+└─────────────────────────────────────┼─────────────────────────────────┘
+                                      │
+                                      ▼
+                              ┌──────────────┐
+                              │  Light Bulb  │
+                              │  (Grow Light)│
+                              └──────────────┘
+                         ┌──────────────────────┐
+         WiFi ◄────────►│    Adafruit IO Cloud  │
+                         │                       │
+                         │  ┌─────────────────┐  │
+                         │  │   Dashboard     │  │
+                         │  │  • Gauges       │  │
+                         │  │  • Line Charts  │  │
+                         │  │  • Toggles      │  │
+                         │  │  • Indicators   │  │
+                         │  └─────────────────┘  │
+                         └──────────────────────┘
+```
+### Data Flow
+```
+Sensor Read → Validate → Update Local State → Update LEDs → Update LCD → Push to Cloud
+     │                        │
+     └── Retry on failure     └── Keep last known good value
+```
+---
 ## 🔧 Hardware Requirements
-
-| Component | Quantity | Description |
-|-----------|----------|-------------|
-| ESP32 Dev Board | 1 | Main microcontroller (e.g., ESP32-WROOM-32) |
-| DHT11 Sensor | 1 | Temperature & humidity sensor module |
-| Photoresistor (LDR) | 1 | Light-dependent resistor for luminance detection |
-| Red LED | 1 | 5mm, with 220Ω resistor |
-| Blue LED | 1 | 5mm, with 220Ω resistor |
-| Light Bulb + Relay | 1 | Grow light with relay module (5V relay recommended) |
-| 16×2 I2C LCD | 1 | LCD with I2C backpack (address 0x27) |
-| Breadboard | 1 | For prototyping |
-| Jumper Wires | ~20 | Male-to-male and male-to-female |
-| USB Cable | 1 | Micro-USB or USB-C for ESP32 |
-| 5V Power Supply | 1 | For powering relay and peripherals |
-
+### Bill of Materials
+| # | Component | Specification | Qty | Est. Cost |
+|---|-----------|---------------|:---:|----------:|
+| 1 | ESP32 Dev Board | ESP32-WROOM-32 or similar | 1 | $5–8 |
+| 2 | DHT11 Module | Temperature & humidity sensor breakout | 1 | $2–3 |
+| 3 | Photoresistor (LDR) | Light-dependent resistor module | 1 | $1–2 |
+| 4 | Red LED | 5mm diffused | 1 | $0.10 |
+| 5 | Blue LED | 5mm diffused | 1 | $0.10 |
+| 6 | 220Ω Resistor | ¼W carbon film | 2 | $0.10 |
+| 7 | 10kΩ Resistor | ¼W carbon film (pull-up/pull-down) | 2 | $0.10 |
+| 8 | Relay Module | 5V single-channel with optocoupler | 1 | $2–3 |
+| 9 | Light Bulb | AC grow light (match relay rating) | 1 | $3–5 |
+| 10 | LCD Display | 16×2 with I2C backpack (0x27) | 1 | $3–4 |
+| 11 | Breadboard | 830 tie-points | 1 | $2–3 |
+| 12 | Jumper Wires | Male-to-male + male-to-female | ~20 | $2 |
+| 13 | USB Cable | Micro-USB or USB-C (for ESP32) | 1 | $2 |
+| 14 | Power Supply | 5V 2A USB adapter | 1 | $3–5 |
+> **Total estimated cost: $25–40 USD**
+### ESP32 Pin Allocation
+| GPIO | Direction | Function | Component |
+|-----:|:---------:|----------|-----------|
+| 4 | Input | Digital data | DHT11 sensor |
+| 5 | Output | Digital signal | Red LED |
+| 18 | Output | Digital signal | Blue LED |
+| 21 | Bidirectional | I2C SDA | LCD display |
+| 22 | Output | I2C SCL | LCD display |
+| 23 | Output | Digital signal | Relay module |
+| 33 | Input | Analog read | Photoresistor |
 ---
-
-## 🔌 Wiring Diagram
-
+## 🔌 Wiring
+### Connection Diagram
 ```
-ESP32 Pin Connections:
-═══════════════════════════════════════════════════════════════
-
-                    ┌──────────────┐
-                    │    ESP32     │
-                    │              │
-  DHT11 Data ──────│ GPIO 4       │
-                    │              │
-  Photoresistor ────│ GPIO 33      │  (ADC1 channel)
-                    │              │
-  Red LED ─────────│ GPIO 5       │  (via 220Ω resistor)
-                    │              │
-  Blue LED ────────│ GPIO 18      │  (via 220Ω resistor)
-                    │              │
-  Relay (Bulb) ────│ GPIO 23      │
-                    │              │
-  LCD SDA ─────────│ GPIO 21      │  (I2C default SDA)
-                    │              │
-  LCD SCL ─────────│ GPIO 22      │  (I2C default SCL)
-                    │              │
-                    │ 3V3 ─────────│──── VCC (DHT11, LCD)
-                    │ GND ─────────│──── GND (all components)
-                    │ 5V/VIN ──────│──── Relay VCC
-                    └──────────────┘
-
-DHT11 Wiring:
-  VCC ──── 3.3V
-  DATA ─── GPIO 4  (add 10kΩ pull-up resistor to VCC)
-  GND ──── GND
-
-Photoresistor (LDR) Wiring:
-  One pin ── GPIO 33
-  Other pin ── GND
-  (Use 10kΩ pull-down resistor to GND, or voltage divider)
-
-LEDs:
-  Red LED  (+) ── 220Ω ── GPIO 5
-  Red LED  (-) ── GND
-  Blue LED (+) ── 220Ω ── GPIO 18
-  Blue LED (-) ── GND
-
-Relay Module:
-  VCC  ──── 5V
-  GND  ──── GND
-  IN   ──── GPIO 23
-  COM  ──── Light Bulb (Live wire)
-  NO   ──── Power Supply (Live wire)
-
-LCD (I2C):
-  VCC ──── 5V (or 3.3V, check module)
-  GND ──── GND
-  SDA ──── GPIO 21
-  SCL ──── GPIO 22
+                         ┌──────────────────┐
+                         │      ESP32       │
+                         │                  │
+     DHT11 DATA ────────┤ GPIO 4           │
+                         │                  │
+     LDR (analog) ──────┤ GPIO 33          │
+                         │                  │
+     Red LED ─── 220Ω ──┤ GPIO 5           │
+                         │                  │
+     Blue LED ── 220Ω ──┤ GPIO 18          │
+                         │                  │
+     Relay IN ──────────┤ GPIO 23          │
+                         │                  │
+     LCD SDA ───────────┤ GPIO 21          │
+                         │                  │
+     LCD SCL ───────────┤ GPIO 22          │
+                         │                  │
+                   3.3V ─┤ 3V3 ──┬── DHT11 VCC
+                         │       └── LCD VCC (if 3.3V)
+                    5V ─┤ 5V  ──── Relay VCC
+                   GND ─┤ GND ──── Common ground
+                         └──────────────────┘
 ```
-
+### DHT11 Wiring
+```
+     3.3V ─────┬──── VCC (DHT11)
+               │
+              10kΩ (pull-up, often on module)
+               │
+     GPIO 4 ───┴──── DATA (DHT11)
+               
+     GND ──────────── GND (DHT11)
+```
+### Photoresistor (LDR) Voltage Divider
+```
+     3.3V �─── 10kΩ ──┬──── GPIO 33
+                      │
+                    [LDR]
+                      │
+     GND ─────────────┘
+     
+     Dark  → LDR resistance ↑ → GPIO 33 voltage ↓ → Low reading
+     Light → LDR resistance ↓ → GPIO 33 voltage ↑ → High reading
+```
+### Relay & Light Bulb
+```
+     GPIO 23 ────── Relay IN
+     
+     ┌─────────────────────────────┐
+     │        RELAY MODULE         │
+     │                             │
+     │  COM ──── Light Bulb ──── AC Neutral
+     │   NO ──── AC Live           │
+     └─────────────────────────────┘
+     
+     ⚠️  WARNING: Mains voltage (110V/220V) present!
+         Use insulated wiring and proper enclosure.
+```
 ---
-
-## 💻 Software Setup
-
+## 🚀 Quick Start
 ### Prerequisites
-
-1. **Arduino IDE** (v2.0+) or **PlatformIO**
-2. **ESP32 Board Support** installed in Arduino IDE
-
-### Step 1: Install ESP32 Board Support
-
-1. Open Arduino IDE
-2. Go to `File → Preferences`
-3. Add this URL to "Additional Board Manager URLs":
-   ```
-   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-   ```
-4. Go to `Tools → Board → Boards Manager`
-5. Search for "esp32" and install **esp32 by Espressif Systems**
-
-### Step 2: Install Required Libraries
-
-Install these libraries via `Sketch → Include Library → Manage Libraries`:
-
-| Library | Author | Purpose |
-|---------|--------|---------|
-| **Adafruit IO Arduino** | Adafruit | Cloud connectivity |
-| **Adafruit MQTT Library** | Adafruit | MQTT protocol |
-| **Adafruit Unified Sensor** | Adafruit | Sensor abstraction |
-| **DHT sensor library** | Adafruit | DHT11/DHT22 support |
-| **LiquidCrystal I2C** | Frank de Brabander | LCD display |
-| **Wire** | Built-in | I2C communication |
-
-### Step 3: Configure the Firmware
-
-1. Open `farm-automation-firmware/config.h`
-2. Fill in your credentials:
-
+- [Arduino IDE 2.0+](https://www.arduino.cc/en/software) **or** [PlatformIO](https://platformio.org/)
+- [ESP32 Board Support](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html)
+- USB cable for ESP32 programming
+- Active [Adafruit IO](https://io.adafruit.com/) account (free tier available)
+### 1. Install ESP32 Board Support
+**Arduino IDE:**
+```
+File → Preferences → Additional Board Manager URLs:
+https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+Tools → Board → Boards Manager → Search "esp32" → Install
+```
+**PlatformIO:** (uses `platformio.ini` included in project)
+### 2. Install Libraries
+| Library | Author | Install via |
+|---------|--------|-------------|
+| Adafruit IO Arduino | Adafruit | Library Manager |
+| Adafruit MQTT Library | Adafruit | Library Manager |
+| Adafruit Unified Sensor | Adafruit | Library Manager |
+| DHT sensor library | Adafruit | Library Manager |
+| LiquidCrystal I2C | Frank de Brabander | Library Manager |
+```bash
+# Or via PlatformIO CLI:
+pio pkg install "adafruit/Adafruit IO Arduino"
+pio pkg install "adafruit/Adafruit MQTT Library"
+pio pkg install "adafruit/Adafruit Unified Sensor"
+pio pkg install "adafruit/DHT sensor library"
+pio pkg install "marcoschwartz/LiquidCrystal I2C"
+```
+### 3. Configure Credentials
+Edit `farm-automation-firmware/config.h`:
 ```cpp
 // WiFi
-#define WIFI_SSID     "YourWiFiName"
-#define WIFI_PASS     "YourWiFiPassword"
-
-// Adafruit IO
-#define IO_USERNAME   "YourAdafruitUsername"
-#define IO_KEY        "YourAdafruitIOKey"
+#define WIFI_SSID     "your-wifi-ssid"
+#define WIFI_PASS     "your-wifi-password"
+// Adafruit IO (found at https://io.adafruit.com/settings)
+#define IO_USERNAME   "your-adafruit-username"
+#define IO_KEY        "your-adafruit-active-key"
 ```
-
-3. Adjust pin assignments and thresholds if your wiring differs
-
-### Step 4: Upload
-
-1. Select your ESP32 board: `Tools → Board → ESP32 Dev Module`
-2. Select the correct port: `Tools → Port`
-3. Click **Upload** (→)
-
----
-
-## ☁️ Adafruit IO Dashboard Setup
-
-### Step 1: Create Feeds
-
-Go to [io.adafruit.com](https://io.adafruit.com) and create these feeds:
-
-| Feed Name | Key | Description |
-|-----------|-----|-------------|
-| Temperature | `temperature` | Temperature readings (°C) |
-| Humidity | `humidity` | Humidity readings (%) |
-| Luminance | `luminance` | Light level (0–4095) |
-| LED | `led` | Manual bulb control toggle |
-| Automatic | `automatic` | Auto/Manual mode toggle |
-
-### Step 2: Create Dashboard
-
-Create a new dashboard called "Farm Automation" and add these blocks:
-
-| Block Type | Feed | Settings |
-|------------|------|----------|
-| **Gauge** | temperature | Min: 0, Max: 60, Unit: °C |
-| **Gauge** | humidity | Min: 0, Max: 100, Unit: % |
-| **Line Chart** | temperature | Time: 24 hours |
-| **Line Chart** | humidity | Time: 24 hours |
-| **Gauge** | luminance | Min: 0, Max: 4095 |
-| **Toggle** | led | ON/OFF for manual bulb control |
-| **Toggle** | automatic | ON = Manual, OFF = Auto |
-| **Indicator** | temperature | Threshold: > 35 (red warning) |
-
-### Dashboard Preview
-
-![Farm Automation Dashboard](Farm%20Automation%20Dashboard%20(Adafruit%20IO).JPG)
-
----
-
-## ⚙️ Configuration
-
-All configuration is centralized in `config.h`. Key settings:
-
-### Thresholds
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `TEMP_HIGH_THRESHOLD` | 35°C | Temperature above which red LED activates |
-| `TEMP_LOW_THRESHOLD` | 30°C | Temperature below which blue LED may activate |
-| `HUMID_LOW_THRESHOLD` | 35% | Humidity below which red LED activates |
-| `HUMID_HIGH_THRESHOLD` | 60% | Humidity above which blue LED may activate |
-| `LUX_DARK_THRESHOLD` | 100 | Light level below which auto-mode turns on bulb |
-
-### Timing
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `SENSOR_READ_INTERVAL` | 10,000ms | How often sensors are read |
-| `LCD_UPDATE_INTERVAL` | 2,000ms | How often the LCD refreshes |
-| `RECONNECT_DELAY` | 5,000ms | Delay between reconnection attempts |
-
----
-
-## 🔄 How It Works
-
-### System Flow
-
+### 4. Upload Firmware
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-│   DHT11     │────▶│              │────▶│   LCD 16x2   │
-│  Temp/Humid │     │              │     │   Display     │
-└─────────────┘     │              │     └──────────────┘
-                    │              │
-┌─────────────┐     │    ESP32     │     ┌──────────────┐
-│Photoresistor│────▶│              │────▶│   Red LED    │
-│  (Light)    │     │              │     │   Blue LED   │
-└─────────────┘     │              │     └──────────────┘
-                    │              │
-┌─────────────┐     │              │     ┌──────────────┐
-│  Adafruit   │◀───▶│              │────▶│  Light Bulb  │
-│  IO Cloud   │     │              │     │  (via Relay) │
-└─────────────┘     └──────────────┘     └──────────────┘
+Arduino IDE:
+  Tools → Board → ESP32 Dev Module
+  Tools → Port → (select your COM port)
+  Sketch → Upload
+PlatformIO:
+  pio run -t upload
 ```
-
-### LED Indicator Logic
-
-| Condition | Red LED | Blue LED | Meaning |
-|-----------|---------|----------|---------|
-| Temp > 35°C **AND** Humidity < 35% | **ON** | OFF | ⚠️ Hot & Dry Warning |
-| Temp < 30°C **AND** Humidity > 60% | OFF | **ON** | ❄️ Cool & Humid |
-| 30–35°C **AND** 35–60% Humidity | OFF | OFF | ✅ Comfortable |
-
-### Bulb Control Logic
-
-| Mode | Light Level | Bulb State |
-|------|-------------|------------|
-| Automatic | Dark (≤ 100) | **ON** |
-| Automatic | Bright (> 100) | OFF |
-| Manual | Any | Controlled by dashboard toggle |
-
----
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-| Problem | Possible Cause | Solution |
-|---------|---------------|----------|
-| LCD shows nothing | Wrong I2C address | Try address `0x3F` in `config.h` |
-| LCD shows garbage | I2C timing issue | Check SDA/SCL connections |
-| Temperature = NaN | DHT11 not connected | Verify wiring, check pull-up resistor |
-| Can't connect to WiFi | Wrong credentials | Double-check SSID and password in `config.h` |
-| Can't connect to Adafruit IO | Wrong IO key | Verify IO_USERNAME and IO_KEY |
-| Bulb won't turn on | Relay wiring issue | Check relay module connections |
-| Erratic light readings | LDR placement | Shield from direct bulb light |
-
-### Serial Monitor
-
-Connect at **115200 baud** to see debug output:
+### 5. Verify
+Open Serial Monitor at **115200 baud**:
 ```
 ========================================
   Farm Automation System v2.0.0
   Group 5 - Lambda
 ========================================
-
 Initializing pins...
 Pins initialized.
 Initializing LCD...
 LCD initialized.
 Initializing DHT sensor...
+Temperature sensor: DHT11
+  Max value: 50.00°C
+Humidity sensor: DHT11
+  Max value: 100.00%
 Sensors initialized.
 Connecting to Adafruit IO...
-Connected to Adafruit IO!
+CONNECTED!
 Setup complete. Entering main loop.
-T: 28.00°C | H: 55.00% | L: 245 | Mode: AUTO
+T: 28°C | H: 55% | L: 245 | Mode: AUTO
 ```
-
 ---
-
-## 📚 Documentation
-
-- [Final Lab Report (PDF)](<(Group%205%20-%20Lambda)%20Documentation%20-%20Final%20Lab%20Act.pdf>)
-- [Original Sketch (txt)](group%205%20final%20project%20sketch.txt)
-
+## ⚙️ Configuration
+All tunable parameters are in [`farm-automation-firmware/config.h`](farm-automation-firmware/config.h).
+### Thresholds
+| Parameter | Default | Unit | Description |
+|-----------|---------|------|-------------|
+| `TEMP_HIGH_THRESHOLD` | `35` | °C | Red LED triggers when exceeded (with low humidity) |
+| `TEMP_LOW_THRESHOLD` | `30` | °C | Blue LED triggers when below (with high humidity) |
+| `HUMID_LOW_THRESHOLD` | `35` | % | Red LED triggers when below (with high temp) |
+| `HUMID_HIGH_THRESHOLD` | `60` | % | Blue LED triggers when exceeded (with low temp) |
+| `LUX_DARK_THRESHOLD` | `100` | ADC | Auto-mode activates bulb below this reading |
+### Timing
+| Parameter | Default | Unit | Description |
+|-----------|---------|------|-------------|
+| `SENSOR_READ_INTERVAL` | `10000` | ms | Sensor polling frequency |
+| `LCD_UPDATE_INTERVAL` | `2000` | ms | LCD refresh frequency |
+| `RECONNECT_DELAY` | `5000` | ms | Delay between reconnection attempts |
+| `WIFI_CONNECT_TIMEOUT` | `30000` | ms | Max WiFi connection wait time |
+### Reliability
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `SENSOR_READ_RETRIES` | `3` | Max attempts per sensor read |
+| `SENSOR_RETRY_DELAY` | `2000` ms | Delay between retries |
 ---
-
+## ☁️ Cloud Dashboard
+### Adafruit IO Setup
+Create the following feeds at [io.adafruit.com](https://io.adafruit.com):
+| Feed | Key | Type | Block Type |
+|------|-----|------|------------|
+| Temperature | `temperature` | Numeric | Gauge (0–60°C) + Line Chart |
+| Humidity | `humidity` | Numeric | Gauge (0–100%) + Line Chart |
+| Luminance | `luminance` | Numeric | Gauge (0–4095) |
+| LED Control | `led` | Boolean | Toggle switch |
+| Mode Select | `automatic` | Boolean | Toggle switch |
+### Dashboard Layout
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    🌾 Farm Automation                         │
+├─────────────────┬─────────────────┬──────────────────────────┤
+│  🌡️ Temperature │  💧 Humidity    │  ☀️ Luminance            │
+│     ┌─────┐    │     ┌─────┐    │     ┌─────┐              │
+│     │ 28° │    │     │ 55% │    │     │ 245 │              │
+│     └─────┘    │     └─────┘    │     └─────┘              │
+├─────────────────┴─────────────────┴──────────────────────────┤
+│  📈 Temperature History ─────────────────────────────────────│
+│  ╭─────╮        ╭──╮                                         │
+│  │     ╰────────╯  ╰───────                                  │
+├──────────────────────────────────────────────────────────────┤
+│  📈 Humidity History ────────────────────────────────────────│
+│  ───────╮        ╭──────────╮                                │
+│         ╰────────╯          ╰────                            │
+├────────────────────────┬─────────────────────────────────────┤
+│  💡 Bulb Control       │  🔄 Operating Mode                  │
+│                        │                                      │
+│   [ ON / OFF ]         │   [ AUTO / MANUAL ]                 │
+├────────────────────────┴─────────────────────────────────────┤
+│  🚨 Status: 🟢 Conditions Normal                             │
+└──────────────────────────────────────────────────────────────┘
+```
+### Control Logic
+| Dashboard Toggle | State | Bulb Behavior |
+|:----------------|:------|:--------------|
+| Mode: **AUTO** (OFF) | Automatic | ON when light < threshold, OFF otherwise |
+| Mode: **MANUAL** (ON) | Manual | Follows LED toggle regardless of light level |
+| LED: **ON** (Manual mode) | Override | Bulb ON |
+| LED: **OFF** (Manual mode) | Override | Bulb OFF |
+> **Note:** The `automatic` feed value `LOW` = Auto mode, `HIGH` = Manual mode.
+---
+## 📡 API Reference
+### Adafruit IO Feeds
+#### `temperature` (Numeric)
+| Property | Value |
+|----------|-------|
+| Direction | Device → Cloud |
+| Unit | °C (Celsius) |
+| Update Interval | 10 seconds |
+| Range | -40 to 80 |
+#### `humidity` (Numeric)
+| Property | Value |
+|----------|-------|
+| Direction | Device → Cloud |
+| Unit | % (Relative Humidity) |
+| Update Interval | 10 seconds |
+| Range | 0 to 100 |
+#### `luminance` (Numeric)
+| Property | Value |
+|----------|-------|
+| Direction | Device → Cloud |
+| Unit | ADC (0–4095) |
+| Update Interval | 10 seconds |
+| Range | 0 to 4095 |
+#### `led` (Boolean)
+| Property | Value |
+|----------|-------|
+| Direction | Cloud → Device |
+| Values | `HIGH` (bulb ON) / `LOW` (bulb OFF) |
+| Effective In | Manual mode only |
+#### `automatic` (Boolean)
+| Property | Value |
+|----------|-------|
+| Direction | Cloud → Device |
+| Values | `LOW` (auto mode) / `HIGH` (manual mode) |
+### Serial Monitor Output
+```
+========================================    ← Startup banner
+  Farm Automation System v2.0.0
+  Group 5 - Lambda
+========================================
+Initializing pins...
+Pins initialized.
+Initializing LCD...
+LCD initialized.
+Initializing DHT sensor...
+Temperature sensor: DHT11                    ← Sensor info
+  Max value: 50.00°C
+Humidity sensor: DHT11
+  Max value: 100.00%
+Sensors initialized.
+Connecting to Adafruit IO...
+CONNECTED!
+Setup complete. Entering main loop.
+T: 28°C | H: 55% | L: 245 | Mode: AUTO     ← Periodic readings
+T: 29°C | H: 53% | L: 198 | Mode: AUTO
+LED command received: 1                      ← Remote commands
+Switched to MANUAL mode
+T: 29°C | H: 53% | L: 198 | Mode: MANUAL
+WARNING: Temperature reading failed...       ← Error recovery
+T: 29°C | H: 53% | L: 201 | Mode: MANUAL   ← Keeps last good value
+```
+---
 ## 📁 Project Structure
-
 ```
 farm-automation/
-├── README.md                          # This file
+│
 ├── farm-automation-firmware/
-│   ├── farm-automation-firmware.ino   # Main firmware source code
-│   └── config.h                       # Configuration file
+│   ├── farm-automation-firmware.ino    # Main firmware source (674 lines)
+│   ├── config.h                        # All configuration parameters
+│   └── platformio.ini                  # PlatformIO build configuration
+│
 ├── dashboard/
-│   └── dashboard-setup.md             # Adafruit IO dashboard guide
+│   ├── dashboard-setup.md              # Adafruit IO setup walkthrough
+│   └── arduino-sketch-backup.md        # Original sketch changelog notes
+│
 ├── docs/
-│   └── changelog.md                   # Version history
+│   └── changelog.md                    # Version history & release notes
+│
 ├── schematics/
-│   └── wiring-diagram.md             # Detailed wiring guide
-├── Actual Device.jpg                  # Photo of the built device
-├── Farm Automation Dashboard (Adafruit IO).JPG
-├── (Group 5 - Lambda) Documentation - Final Lab Act.pdf
-└── group 5 final project sketch.txt   # Original Arduino sketch
+│   └── wiring-diagram.md              # Detailed wiring documentation
+│
+├── README.md                           # This file
+├── .gitignore                          # Git ignore rules
+├── Actual Device.jpg                   # Photo of assembled device
+├── Farm Automation Dashboard.JPG       # Screenshot of Adafruit IO dashboard
+├── (Group 5) Documentation.pdf         # Lab report (PDF)
+└── group 5 final project sketch.txt    # Original v1.0.0 Arduino sketch
 ```
-
 ---
-
+## 🔍 Troubleshooting
+### Common Issues
+<details>
+<summary><strong>LCD shows nothing / garbled characters</strong></summary>
+- Verify I2C address: try `0x27` or `0x3F` in `config.h`
+- Run an [I2C Scanner sketch](https://playground.arduino.cc/Main/I2cScanner/) to detect the address
+- Check SDA → GPIO 21 and SCL → GPIO 22 connections
+- Ensure LCD module has power (check backlight)
+</details>
+<details>
+<summary><strong>Temperature / Humidity reads as NaN</strong></summary>
+- Verify DHT11 wiring: VCC → 3.3V, DATA → GPIO 4, GND → GND
+- Add a 10kΩ pull-up resistor between DATA and VCC (if not on module)
+- DHT11 needs ~2 seconds between reads; firmware handles this via timing
+- Check Serial Monitor for retry messages
+</details>
+<details>
+<summary><strong>Cannot connect to WiFi / Adafruit IO</strong></summary>
+- Double-check `WIFI_SSID` and `WIFI_PASS` in `config.h` (case-sensitive)
+- Verify `IO_USERNAME` and `IO_KEY` match your Adafruit IO account
+- Ensure WiFi network is 2.4 GHz (ESP32 does not support 5 GHz)
+- Check that your Adafruit IO key is the **Active Key** (not legacy)
+</details>
+<details>
+<summary><strong>Light bulb does not respond</strong></summary>
+- Check relay module wiring: IN → GPIO 23, VCC → 5V, GND → GND
+- Verify relay LED indicator lights up when GPIO 23 goes HIGH
+- Test relay with `digitalWrite(23, HIGH)` in Serial Monitor
+- Ensure bulb is connected through relay COM and NO terminals
+</details>
+<details>
+<summary><strong>Light sensor readings are erratic</strong></summary>
+- Shield the LDR from direct bulb light (causes feedback loop)
+- Ensure the 10kΩ pull-down resistor is connected
+- Readings are averaged over 5 samples; check wiring if still noisy
+</details>
+### Debug Checklist
+- [ ] Serial Monitor open at **115200 baud**
+- [ ] All ground connections share common ground
+- [ ] No loose breadboard connections
+- [ ] Power supply adequate (5V 2A recommended)
+- [ ] Correct board selected in Arduino IDE (`ESP32 Dev Module`)
+- [ ] Correct COM port selected
+---
+## 🤝 Contributing
+Contributions are welcome. Please follow these guidelines:
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/your-feature`)
+3. **Commit** with clear messages (`git commit -m 'Add: your feature'`)
+4. **Push** to your branch (`git push origin feature/your-feature`)
+5. **Open** a Pull Request
+### Code Style
+- Use descriptive variable names (no single-letter variables)
+- Comment all public functions with `/** Doxygen-style */` blocks
+- Keep functions under 50 lines where possible
+- Use `#define` constants instead of magic numbers
+- Prefix globals with descriptive names (`currentTemperature`, not `t`)
+### Reporting Issues
+When reporting a bug, include:
+- ESP32 board variant
+- Arduino IDE / PlatformIO version
+- Serial Monitor output (with `SENSOR_READ_RETRIES` at default 3)
+- Wiring diagram or photo of your setup
+---
 ## 📄 License
-
-This project is for educational purposes. Created by Group 5 — Lambda.
-
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+```
+MIT License
+Copyright (c) 2026 Group 5 - Lambda
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 ---
-
-## 👥 Group 5 — Lambda
-
+## 👥 Authors
+**Group 5 — Lambda**
 Farm Automation System — Final Lab Project
+---
+<div align="center">
+**[⬆ Back to top](#-farm-automation-system)**
+</div>
