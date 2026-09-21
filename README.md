@@ -647,7 +647,14 @@ SOFTWARE.
 
 ## 👥 Authors
 
-**Group 5 — Lambda**
+**Yours truly**
+
+**NC Balayon**
+
+**JM Amboang**
+
+**MK Asidillo**
+
 
 Farm Automation System — Final Lab Project
 
