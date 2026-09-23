@@ -647,11 +647,11 @@ SOFTWARE.
 
 ## 👥 Authors
 
-**Yours truly, MSc**
+**Yours truly, MSc.**
 
-**NC Balayon, MSc**
+**NC Balayon, MSc.**
 
-**JM Amboang, MSc**
+**JM Amboang, MSc.**
 
 **AL Usman, MSc.**
 
